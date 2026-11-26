@@ -248,3 +248,138 @@ app/catalog/page.tsx (CatalogPage; proveedor de datos y estado de orden)
 - `demoListings` y `Listing` (`lib/listings.ts`, `types/listing.ts`): fixtures y contrato actuales. `pricePerNight` es un `number` en euros; `category` usa `ListingCategoryId`. No es necesario cambiar los tipos para ordenar.
 - `SiteHeader` (`components/SiteHeader.tsx`): pertenece al flujo de Home e incluye campo de búsqueda, menú de usuario y saludo. No es reutilizable como encabezado de resultados sin condicionar props/contenido; la propuesta es `CatalogHeader` propio y compacto, preservando una cabecera global solo si la captura legible lo confirma.
 - No implementar en esta etapa: ruta `/catalog`, componentes, estilos, cambios en Home, detalle `/rooms/[id]`, interacción de filtros adicional, backend ni mapa real.
+
+## Especificación visual — Detalle de habitación — Captura móvil 375 px
+
+### Alcance, observaciones y límites
+
+- **Referencias analizadas:** `airbnb-detail-mobile.png` (376 × 668 px), `airbnb-rom-info-mobile.png` (388 × 670 px) y `airbnb-rom-info2-mobile.png` (384 × 664 px). Los archivos no tienen todos 375 px de ancho; la vista se implementará y probará con viewport de 375 px.
+- **Limitación de inspección:** se pudieron abrir como imágenes locales y verificar dimensiones, pero el visor disponible no expuso sus píxeles al análisis. Por tanto, no se puede afirmar de forma fiable qué textos, imágenes, iconos, colores, posiciones o controles exactos aparecen. Las decisiones visuales propuestas abajo no son observaciones directas. Para fidelidad pixel a pixel, revisar las imágenes en un visor visual antes de implementar.
+- **Requisitos académicos no necesariamente observables en las referencias:** galería navegable con anterior/siguiente e indicador; anfitrión y amenidades; reserva simulada con selector de huéspedes y total calculado; carga mediante `useEffect`/`setTimeout`; manejo de IDs desconocidos; navegación App Router con `Link`.
+
+### Descripción visual y jerarquía propuesta
+
+La página pertenece a `/rooms/[id]` y presenta un alojamiento con desplazamiento vertical natural. Composición mobile-first propuesta: navegación compacta de regreso al Catálogo; galería fotográfica de ancho disponible; título, ubicación y valoración; resumen del anfitrión; descripción; amenidades; y panel de reserva con selector de huéspedes. El panel se integra en el flujo del contenido en móvil para no estrechar la lectura ni tapar la galería. No se determina si alguna referencia muestra una barra fija o una disposición distinta, dado que sus píxeles no fueron legibles en esta sesión.
+
+Ubicación y rating se presentan cerca del título. La galería tendrá botones accesibles y un contador visible. La información larga (descripción y amenidades) se separa en bloques. En escritorio, se propone contenido a la izquierda y panel de reserva a la derecha, con galería más amplia.
+
+### Tabla de componentes, responsabilidades y props
+
+Los componentes nuevos serán funciones arrow declaradas con `const`, en archivos separados en `/components`, con responsabilidad acotada y objetivo inferior a ~80 líneas de JSX/lógica. Tipos específicos pueden vivir en `/types/room.ts` y fixtures en `/lib/rooms.ts`. `Listing` existente seguirá siendo la fuente de identidad, ubicación, rating y precio base.
+
+| Componente | Responsabilidad | Props propuestas | Estado e interacciones | Responsive y dependencias |
+| --- | --- | --- | --- | --- |
+| `RoomDetailPage` (orquestador cliente de `/rooms/[id]`) | Simular consulta local, gestionar carga/no encontrado y coordinar la vista. | `roomId: string` derivado de `params`; no recibe el alojamiento resuelto. | `room: RoomDetail \| null`, `isLoading: boolean`; `useEffect` + `setTimeout`, con limpieza y dependencia del ID. | Mobile-first; compone componentes del detalle. Puede delegar UI a `RoomDetailView` si simplifica separar carga y presentación. |
+| `RoomNavigation` | Enlace de regreso al catálogo y breadcrumb opcional. | `backHref?: string`, `backLabel?: string`. | Sin estado. | Barra compacta; usa `Link` a `/catalog`. |
+| `RoomGallery` | Mostrar foto actual, navegar anterior/siguiente y comunicar índice. | `images: RoomPhoto[]`; `title: string`; `initialIndex?: number`. | `currentIndex` con `useState`; navegación circular o extremos deshabilitados, decisión a fijar al implementar; anuncio “Foto n de total”. | Móvil una imagen principal fluida; escritorio puede usar mosaico desde 768 px si hay fotos suficientes. Depende de `next/image` e `Icon`. |
+| `RoomInformation` | Reunir título, ubicación, valoración, reseñas y descripción. | `listing: Listing`; `description: string`. | Sin estado; reutiliza `RatingStars`. | Título multilínea, sin truncar información esencial. Depende de `Listing` y `RatingStars`. |
+| `HostInformation` | Presentar anfitrión ficticio, avatar, nombre y antigüedad/resumen. | `host: HostInfo`. | Presentacional. | Avatar compacto y texto con wrap. |
+| `AmenitiesList` | Presentar amenidades de forma escaneable. | `amenities: Amenity[]`; `visibleCount?: number`. | Sin estado obligatorio. | Una columna o filas compactas en móvil; dos columnas en escritorio. El texto conserva el significado aunque haya icono. |
+| `BookingCard` | Simular selección y cálculo de reserva sin backend/pagos. | `pricePerNight: number`; `currency: Currency`; `estimatedNights: number`; `cleaningFee?: number`; `maxGuests: number`; `guestCount: number`; `onGuestCountChange: (count: number) => void`; `onReserve?: () => void`. | Recibe huéspedes controlados; calcula subtotales y total a partir de datos ficticios; CTA solo confirma localmente. | En móvil queda en el flujo o en franja inferior únicamente si se valida y no tapa contenido; en escritorio puede ser tarjeta lateral. |
+| `GuestSelector` | Ajustar cantidad de huéspedes dentro de límites. | `value: number`; `min?: number` (default 1); `max: number`; `onChange: (value: number) => void`. | Controlado por padre; los botones respetan mínimo/máximo. | Controles táctiles de ~44 px; etiqueta y valor legibles; no permitir menos de 1 ni superar `maxGuests`. |
+| `RoomLoadingState` | Comunicar carga simulada. | `label?: string`. | Sin estado. | Reemplaza contenido mientras carga; se puede generalizar `LoadingState` solo si no rompe su contrato actual. |
+| `RoomNotFound` | Informar ID inválido y ofrecer recuperación. | `roomId: string`. | Sin estado. | Mensaje legible y `Link` al catálogo; no mostrar reserva vacía. |
+
+### Jerarquía de componentes propuesta
+
+```text
+app/rooms/[id]/page.tsx (lee params y entrega roomId)
+└── RoomDetailPage (estado de carga y búsqueda local simulada)
+    ├── RoomLoadingState (mientras carga) / RoomNotFound (ID inválido)
+    └── RoomDetailView (composición del alojamiento)
+        ├── RoomNavigation
+        ├── RoomGallery
+        ├── RoomInformation ── RatingStars
+        ├── HostInformation
+        ├── AmenitiesList
+        └── BookingCard ── GuestSelector
+```
+
+`RoomDetailView` es una extracción opcional; mantenerlo solo si evita que el orquestador supere la complejidad razonable. Cada componente mantiene una responsabilidad; los valores derivados no se duplican en estado innecesario.
+
+### Interfaces TypeScript propuestas
+
+Los contratos siguientes son propuestas documentales; no implican modificar archivos TS/TSX en esta etapa. `Listing` aporta ID, título, ubicación, `pricePerNight`, rating, reseñas, categoría e imagen de portada:
+
+```ts
+import type { Listing } from "@/types/listing";
+
+export type Currency = "EUR";
+
+export interface RoomPhoto {
+  src: string;
+  alt: string;
+}
+
+export interface HostInfo {
+  name: string;
+  avatarUrl: string;
+  joinedLabel: string;
+  isSuperhost?: boolean;
+}
+
+export interface Amenity {
+  id: string;
+  label: string;
+  icon?: string; // clave para un mapa de iconos local
+}
+
+export interface RoomDetail {
+  listing: Listing;
+  photos: RoomPhoto[];
+  host: HostInfo;
+  description: string;
+  amenities: Amenity[];
+  maxGuests: number;
+  estimatedNights: number;
+  cleaningFee?: number;
+}
+
+export interface GuestSelectorProps {
+  value: number;
+  min?: number;
+  max: number;
+  onChange: (value: number) => void;
+}
+```
+
+La colección local se resolverá por el mismo ID estable usado en `demoListings`. Fotos, anfitrión, amenidades, máximo de huéspedes y noches/importes demostrativos son fixtures locales y ficticios. Si existe el `Listing` pero falta su detalle extendido, gestionarlo explícitamente como no encontrado o definir fallback deliberado; no inventar un detalle parcial silenciosamente.
+
+### Interacciones y hooks
+
+1. **Carga simulada:** `RoomDetailPage` obtiene `roomId` de la ruta. `useEffect` programa `window.setTimeout` para buscarlo en una colección local y asignar `RoomDetail` o `null`, además de apagar `isLoading`. El cleanup usa `window.clearTimeout(timer)` e incluye `roomId` en dependencias. No se utiliza fetch ni backend.
+2. **Carga y error:** durante la demora se muestra `RoomLoadingState`; un ID desconocido presenta `RoomNotFound` con regreso al catálogo. Cambios de ID/desmontaje no deben permitir que un temporizador obsoleto sobrescriba la vista actual.
+3. **Galería:** `RoomGallery` guarda el índice con `useState`, limita o envuelve los índices correctamente y deriva la foto visible. Botones `type="button"` etiquetados “Foto anterior”/“Foto siguiente”; contador visible y `aria-live="polite"`. Con cero fotos se usa placeholder; con una foto se ocultan o deshabilitan controles coherentemente.
+4. **Huéspedes:** estado numérico controlado, inicial 1, `min=1`, `max=room.maxGuests` (por ejemplo, máximo ficticio 6 salvo que el fixture especifique otro). Botón menos no baja de 1 y más no pasa del máximo. El grupo y botones exponen su propósito accesiblemente.
+5. **Estimación:** precio/noche por `Listing`; noches ficticias deterministas en `RoomDetail.estimatedNights` (p. ej., 3), sin fechas ni backend. `subtotal = pricePerNight * estimatedNights`; si se incluye limpieza, sumar `cleaningFee` una vez y mostrarla desglosada. `total = subtotal + (cleaningFee ?? 0)`. Mostrar número de huéspedes y noches aplicadas. Formatear con `Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" })`. No simular impuestos o tarifas no definidas.
+6. **CTA:** botón “Reservar” o “Solicitar reserva” sin API, pagos ni persistencia. Puede mostrar confirmación local accesible (por ejemplo, `role="status"`) con huéspedes, noches y total; no afirmar que se completó una reserva real.
+7. **Accesibilidad:** `alt` en imágenes, estructura semántica, controles nativos, foco visible, sin botones anidados, feedback anunciado y mensajes legibles sin depender solo del color/icono.
+
+### Navegación y rutas
+
+- **Home → Catálogo:** conservar el `Link` existente de Home a `/catalog`.
+- **Catálogo → Detalle:** `ListingCard` ya genera `Link` a `/rooms/${listing.id}`; conservarlo, sin `window.location` ni `<a href>` para navegación interna.
+- **Detalle → Catálogo:** `RoomNavigation` y `RoomNotFound` usan `Link` de `next/link` a `/catalog`.
+- La ruta dinámica propuesta es `app/rooms/[id]/page.tsx`. Antes de implementarla, revisar la documentación local de Next.js 16 para la firma tipada actual de `params`; mapear el ID a `roomId` y pasar props al componente cliente de carga. La navegación debe usar App Router sin recarga completa.
+
+### Reglas responsive y presentación
+
+- Mobile-first y prueba en 375 px; las referencias disponibles miden 376, 388 y 384 px de ancho.
+- Móvil: una columna, galería fluida y márgenes coherentes con el proyecto (`px-5` como punto inicial); título multilínea; rating/ubicación legibles; anfitrión, descripción, amenidades y reserva en flujo vertical. Sin anchos fijos superiores al viewport ni overlays que tapen contenido; validar `scrollWidth <= clientWidth`.
+- Botones de galería y huéspedes con área táctil aproximada de 44 × 44 px; operables sin hover.
+- Desde 768 px: ampliar contenedor; galería potencialmente en mosaico; contenido principal en dos columnas con información a la izquierda y `BookingCard` lateral, solo si el ancho permite lectura cómoda.
+- El panel de reserva no tapa contenido importante en móvil. En escritorio puede ser `sticky` si no interfiere con flujo ni teclado. No asumir una barra fija móvil sin cotejar referencia y accesibilidad.
+- Solo utilidades Tailwind; tipografía/paleta coherente con Home y Catálogo; sin bibliotecas de UI, pagos o mapas. Usar imágenes locales de demostración y `next/image` para assets estáticos.
+
+### Reutilización de componentes existentes
+
+- `RatingStars` (`components/RatingStars.tsx`): reutilizar con `rating` y `reviewCount` del `Listing`; no reimplementar estrellas.
+- `Icon` (`components/Icon.tsx`): reutilizar iconos existentes cuando sean semánticamente adecuados. Si faltan flechas/amenidades, ampliar el mapa local acotadamente; no instalar paquetes de iconos.
+- `Listing` y `demoListings` (`types/listing.ts`, `lib/listings.ts`): fuente autoritativa de IDs y datos base. Añadir detalle extendido en `/types` y fixture en `/lib`, asociado por `listing.id`, sin duplicar innecesariamente el modelo.
+- `ListingCard`/`ListingGrid`: no son la estructura principal del detalle; el enlace desde catálogo resuelve la navegación. Se podrían usar en recomendaciones futuras, fuera del alcance actual.
+- `LoadingState`: está orientado a la cuadrícula; reutilizar solo si se extrae una variante compatible, o crear `RoomLoadingState`.
+- `SiteHeader`: pertenece a Home y no se reutiliza automáticamente; proponer `RoomNavigation` compacto salvo que la referencia visual cotejada requiera cabecera compartida.
+
+### Fuera de alcance
+
+No habrá backend, autenticación, calendario real, fechas editables, pagos, disponibilidad real, mensajes al anfitrión ni confirmación persistida. Esta sección es especificación para una etapa posterior: no implementar aún ruta ni modificar archivos TSX, TS o CSS.
