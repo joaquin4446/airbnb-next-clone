@@ -1,5 +1,5 @@
 import HomePage from "@/components/HomePage";
 
-export default function Home() {
-  return <HomePage />;
-}
+const Home = () => <HomePage />;
+
+export default Home;
