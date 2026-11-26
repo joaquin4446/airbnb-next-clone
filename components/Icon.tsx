@@ -11,7 +11,9 @@ export type IconName =
   | "trending"
   | "design"
   | "pools"
-  | "close";
+  | "close"
+  | "chevron-left"
+  | "chevron-right";
 
 interface IconProps {
   name: IconName;
@@ -33,6 +35,8 @@ const paths: Record<IconName, string> = {
   design: "M12 3v18m-9-9h18M5.6 5.6l12.8 12.8m0-12.8L5.6 18.4",
   pools: "M3 17c2.2 0 2.2 2 4.5 2s2.3-2 4.5-2 2.3 2 4.5 2 2.3-2 4.5-2M7 14V5h10v9M7 9h10",
   close: "m18 6-12 12M6 6l12 12",
+  "chevron-left": "m15 18-6-6 6-6",
+  "chevron-right": "m9 18 6-6-6-6",
 };
 
 export const Icon = ({ name, className, filled = false }: IconProps) => (
