@@ -89,22 +89,8 @@ El proyecto utiliza alojamientos, fotografías, anfitriones y amenidades fictici
 
 ## Capturas de pantalla
 
-Agrega aquí capturas del proyecto para la entrega. Reemplaza las rutas de ejemplo por las imágenes guardadas en el repositorio.
-
-### Inicio
-
-![Captura de Inicio](./docs/screenshots/home.png)
-
-### Catálogo
-
-![Captura de Catálogo](./docs/screenshots/catalog.png)
-
-### Detalle
-
-![Captura de Detalle](./docs/screenshots/detail.png)
-
-> Las imágenes anteriores son rutas previstas para las capturas; añade los archivos correspondientes antes de publicar si quieres que se visualicen en GitHub.
+Las capturas pueden ubicarse en la carpeta docs/screenshots
 
 ## Entrega
 
-La entrega académica se realizará mediante el repositorio de GitHub. No se especifica una URL de despliegue.
+La entrega académica se realizará mediante el repositorio de GitHub. 
