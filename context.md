@@ -165,3 +165,86 @@ Semillas ilustrativas (contenido inventado, no transcrito de la referencia): «C
 ### Pendiente antes de implementar fidelidad visual
 
 Volver a inspeccionar la imagen visible y sustituir/confirmar las hipótesis visuales: composición exacta de la cabecera y búsqueda, etiquetas y orden de categorías, cantidad de tarjetas visibles, proporción y recorte de fotos, presencia/posición de favoritos, textos, tipografía, colores, radios y márgenes. Esta sección define arquitectura y comportamiento; sus medidas visuales son una guía inicial, no una medición de la captura.
+
+## Especificación visual — Catálogo — Captura móvil 375 px
+
+### Alcance y certeza de la referencia
+
+- **Archivo proporcionado:** `airbnb-catalog-mobile.png`. Al abrir el archivo local, el navegador informa dimensiones de **373 × 691 px**; la implementación académica se comprobará a 375 px.
+- **Límite de inspección de esta sesión:** aunque se pudo abrir el archivo, el visor disponible no entrega los píxeles de la imagen al modelo. Por ello no es posible confirmar visualmente textos, cantidad de tarjetas visibles, colores, posición de controles, tipografía, espaciados ni presencia de elementos opcionales. No deben describirse como observaciones ni inventarse medidas exactas.
+- La sección especifica la arquitectura obligatoria y una propuesta de presentación compatible con Home. La propuesta debe cotejarse con la captura visible antes de buscar fidelidad pixel a pixel. Los requisitos académicos se distinguen expresamente de lo que la imagen deja verificar.
+
+### Descripción y estructura propuesta
+
+El Catálogo es una página de resultados independiente de Home, bajo la ruta `/catalog`. En móvil presenta un flujo de una columna, legible y desplazable verticalmente. La jerarquía funcional propuesta es: encabezado compacto del catálogo con cantidad de resultados; control de ordenación por precio y acceso a filtros; lista de alojamientos reutilizando las tarjetas existentes; y un placeholder de mapa con la etiqueta **«Mapa»** en la parte inferior. El encabezado global `SiteHeader` no se reutiliza por defecto: contiene búsqueda y menú de Home, mientras que Catálogo necesita su propio encabezado de resultados. Si la captura evidencia que comparte marca/cabecera, esa decisión visual se ajustará al verificarla.
+
+**No verificable en la captura con las herramientas de esta sesión:** orden visual exacto de los controles, número de resultados mostrado, control de filtros concreto, contenido que queda dentro del primer pliegue, relación de aspecto de las imágenes, ubicación del selector de orden, colores y tipografía. Los elementos de orden, conteo, tarjetas, mapa y navegación son requisitos del ejercicio, no afirmaciones sobre lo observado en la imagen. El control de filtros puede ser una acción visual accesible sin funcionalidad adicional, salvo que posteriormente se solicite implementar filtros.
+
+### Tabla de componentes, responsabilidades y props
+
+Los componentes propios nuevos se crearán dentro de `/components`, como funciones declaradas con `const`, con Tailwind CSS para toda la presentación y archivos acotados a una responsabilidad. Las props son contratos propuestos, no código implementado.
+
+| Componente | Estado | Responsabilidad | Props / contrato propuesto |
+| --- | --- | --- | --- |
+| `CatalogPage` (`app/catalog/page.tsx`) | Nuevo | Coordinar los datos ficticios, orden, conteo y composición de la página. Será Client Component si contiene el `useState` de ordenación; puede delegar ese estado a `CatalogResults` para mantener la página de composición sencilla. | Sin props de ruta. Consume `demoListings` desde `/lib/listings`. |
+| `CatalogHeader` | Nuevo | Mostrar el título o contexto de resultados y el total derivado del conjunto actualmente mostrado; no duplicar el encabezado de Home. | `resultCount: number`; opcional `title?: string`. |
+| `CatalogToolbar` | Nuevo | Agrupar el selector de ordenación y una acción de filtros si la captura/requisito visual lo necesita. Mantener controles con etiquetas y objetivos táctiles accesibles. | `sortOrder: SortOrder`; `onSortChange: (order: SortOrder) => void`; opcional `onFilterClick?: () => void`. |
+| `SortControl` | Nuevo, mencionado en el inventario general | Permitir seleccionar precio ascendente o descendente. Puede ser `select` nativo accesible o botones segmentados, decidido al verificar la referencia; ambas opciones deben conservar la semántica de orden. | `value: SortOrder`; `onChange: (value: SortOrder) => void`. Tipo recomendado: `type SortOrder = "price-asc" \| "price-desc"`. |
+| `ListingGrid` | Existente | Renderizar las tarjetas en cuadrícula responsive. Su interfaz actual requiere `listings`, `isLoading`, `onClearFilters`, `favoriteIds` y `onFavoriteToggle`; el Catálogo puede pasar `isLoading={false}` y callbacks/estado de favoritos apropiados. Si se desea un modo catálogo sin estado vacío de filtros, evaluar luego una extensión compatible y opcional, sin romper Home. | Interfaz existente: `listings: Listing[]`; `isLoading: boolean`; `onClearFilters: () => void`; `favoriteIds: Set<string>`; `onFavoriteToggle: (listingId: string) => void`. |
+| `ListingCard` | Existente | Presentar alojamiento, imagen, texto, precio, nota y favorito; navegación interna con `Link` a `/rooms/${listing.id}`. Reutilizar sin copiar su marcado ni estilos. | Interfaz existente: `listing: Listing`; `isFavorite?: boolean`; `onFavoriteToggle?: (listingId: string) => void`. El enlace se construye actualmente dentro de la tarjeta a partir de `listing.id`. |
+| `MapPlaceholder` | Nuevo | Reservar una zona identificable para mapa después de los resultados; en esta etapa solo requiere mostrar la palabra «Mapa», sin mapa interactivo ni dependencia externa. | Opcional `label?: string`, por defecto «Mapa». Presentación accesible como región con nombre. |
+
+### Jerarquía de componentes propuesta
+
+```text
+app/catalog/page.tsx (CatalogPage; proveedor de datos y estado de orden)
+└── CatalogResults (opcional, si se separa la lógica interactiva)
+  ├── CatalogHeader (número de resultados)
+  ├── CatalogToolbar
+  │   ├── SortControl (precio ascendente / descendente)
+  │   └── acción de filtros (solo si corresponde a la referencia)
+  ├── ListingGrid (lista ya ordenada)
+  │   └── ListingCard × N
+  │       └── RatingStars
+  └── MapPlaceholder («Mapa»)
+```
+
+`CatalogResults` es una extracción opcional para separar presentación y estado si `CatalogPage` supera el umbral de complejidad del proyecto. No es requisito añadir una capa de abstracción si una página breve puede coordinar los datos y `useState` claramente.
+
+### Estado React y derivación de resultados
+
+- Estado mínimo obligatorio: `sortOrder: SortOrder`, iniciado en `"price-asc"` o en la opción de orden por defecto que se confirme con la captura. El selector actualiza el estado con `useState`.
+- `sortedListings` debe derivarse de `demoListings` y `sortOrder` (por ejemplo con `useMemo`, o directamente si el conjunto es pequeño). Orden ascendente compara `pricePerNight` de menor a mayor; descendente, de mayor a menor. No mutar el array compartido: copiar antes de ordenar o trabajar sobre una copia.
+- El contador se deriva de la lista que efectivamente se muestra: `sortedListings.length`. El orden no cambia el total. No hace falta estado separado para el conteo.
+- Los alojamientos actuales de `/lib/listings.ts` ya son datos ficticios compatibles con `Listing`: ocho entradas con `id`, título, ubicación, categoría, `pricePerNight`, valoración, recuento de reseñas e imagen local/alt. La implementación de Catálogo debe consumir esta fuente y no duplicar fixtures ni introducir backend.
+- Favoritos: son opcionales para el requisito de Catálogo. Si se desea que el botón de `ListingCard` funcione también aquí, usar `favoriteIds: Set<string>` y `toggleFavorite` en Catálogo; alternativamente, proporcionar un `Set` vacío y callback seguro. No añadir búsqueda/categorías de Home como estado de Catálogo salvo una solicitud posterior.
+- No se requiere `useEffect` ni carga simulada para Catálogo: el enunciado solo requiere datos ficticios locales y ordenación con `useState`.
+
+### Comportamientos interactivos y requisitos académicos
+
+1. La ruta App Router será `/catalog`, implementada en `app/catalog/page.tsx` y navegable como ruta propia.
+2. Mostrar el número de resultados de la colección visible, actualizado si en otra iteración se agregan filtros.
+3. Permitir cambiar entre precio ascendente y descendente. El orden se refleja inmediatamente en la lista y el control expone su valor/estado accesiblemente.
+4. Reutilizar `ListingCard` de Home: no copiar su markup. Las tarjetas existentes navegan con `next/link` a `/rooms/${listing.id}` y muestran imagen/alt, título, ubicación, rating, precio y acción de favorito.
+5. El Catálogo pasa la colección ordenada a una cuadrícula responsive; el estado de orden no se guarda dentro de cada tarjeta.
+6. Después de la lista se renderiza `MapPlaceholder`, visible con el texto «Mapa». Es solo un espacio representativo; no integrar mapas ni instalar paquetes.
+7. Mantener los enlaces de tarjetas como navegación interna mediante `Link`; no usar `<a href>` convencional para navegación de la aplicación.
+8. Si el toolbar incluye un botón «Filtros», dejar claro si es solo visual o implementar únicamente una interacción explícitamente requerida. No sugerir que aplica filtros funcionales inexistentes.
+
+### Reglas responsive y dirección visual
+
+- Mobile-first, probado en 375 px (la referencia disponible reporta 373 px). Una sola columna de tarjetas y flujo vertical; nada debe provocar overflow horizontal a nivel de documento.
+- Mantener márgenes laterales y separación coherentes con Home y `ListingGrid` existente (`px-5`, `gap-y-8` como base disponible), salvo que el cotejo de la captura indique otros valores. El control de orden debe caber en el viewport y poder operarse táctilmente.
+- En ancho mayor, aprovechar la cuadrícula que ya tiene `ListingGrid`: una columna por defecto, dos desde `sm`, tres desde `xl` y cuatro desde `2xl`. Confirmar con una prueba de escritorio que el encabezado, control de orden y zona de mapa siguen legibles; no fijar anchuras rígidas que causen desbordamiento.
+- «Mapa» se representa como bloque de altura útil, con contraste y nombre accesible; en móvil queda después de las tarjetas, no como overlay que tape controles/resultados. Sin mapas dinámicos ni librerías externas.
+- Reutilizar la paleta neutral y el acento existente solo como continuidad del producto; no registrar códigos de color, tamaños tipográficos, radios o composición de la captura como observados mientras la imagen no sea inspeccionable. Para implementación final, medir visualmente la referencia.
+- Estilos exclusivamente con utilidades Tailwind, según la regla general del proyecto. Componentes definidos como funciones con `const`; evitar CSS ad hoc, bibliotecas de UI o bibliotecas de mapas.
+
+### Componentes existentes que se reutilizan
+
+- `ListingCard` (`components/ListingCard.tsx`): reutilización directa con los datos `Listing`; genera enlaces `/rooms/[id]`, utiliza `next/image` y `RatingStars`, y acepta estado/callback opcional de favoritos.
+- `ListingGrid` (`components/ListingGrid.tsx`): reutilización posible y preferida para la cuadrícula. Su interfaz actual está acoplada a los estados de Home (`isLoading`, `onClearFilters`, `favoriteIds`, `onFavoriteToggle`) y su rama vacía muestra `EmptyState` de filtros. En implementación, pasar `isLoading={false}`, no-op para limpieza si los tipos actuales lo exigen, y un `Set`/callback de favoritos; alternativamente refactorizarlo de forma retrocompatible con props opcionales o extraer una cuadrícula de presentación compartida. No modificar ahora los componentes existentes durante esta etapa documental.
+- `RatingStars` (`components/RatingStars.tsx`): se utiliza indirectamente a través de `ListingCard`, sin construir un segundo rating.
+- `demoListings` y `Listing` (`lib/listings.ts`, `types/listing.ts`): fixtures y contrato actuales. `pricePerNight` es un `number` en euros; `category` usa `ListingCategoryId`. No es necesario cambiar los tipos para ordenar.
+- `SiteHeader` (`components/SiteHeader.tsx`): pertenece al flujo de Home e incluye campo de búsqueda, menú de usuario y saludo. No es reutilizable como encabezado de resultados sin condicionar props/contenido; la propuesta es `CatalogHeader` propio y compacto, preservando una cabecera global solo si la captura legible lo confirma.
+- No implementar en esta etapa: ruta `/catalog`, componentes, estilos, cambios en Home, detalle `/rooms/[id]`, interacción de filtros adicional, backend ni mapa real.
