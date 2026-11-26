@@ -26,6 +26,12 @@ export const SiteHeader = ({ query, onQueryChange }: SiteHeaderProps) => {
           <p className="hidden text-sm font-medium text-neutral-700 md:block">
             Encuentra tu próximo lugar favorito
           </p>
+          <Link
+            href="/catalog"
+            className="flex min-h-10 items-center rounded-full px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+          >
+            Catálogo
+          </Link>
           <div className="relative">
             <button
               type="button"
